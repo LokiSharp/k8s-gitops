@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   # deploy monitoring stack first
   - ../../base/victoria-metrics/
+  - ../../base/kubevirt/
 
 patches:
   - path: ./helmrelease-victoria-metrics.yaml
