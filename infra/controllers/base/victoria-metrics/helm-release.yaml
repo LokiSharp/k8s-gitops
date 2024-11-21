@@ -1,0 +1,78 @@
+# https://fluxcd.io/flux/components/helm/helmreleases/
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: victoria-metrics-k8s-stack
+  namespace: monitoring
+spec:
+  install:
+    crds: CreateReplace
+    replace: true
+  releaseName: victoria-metrics-k8s-stack
+  interval: 30m
+  chart:
+    spec:
+      chart: victoria-metrics-k8s-stack
+      version: "0.25.0"
+      sourceRef:
+        kind: HelmRepository
+        name: victoria-metrics
+        namespace: flux-system
+      interval: 12h
+  # https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-k8s-stack
+  values:
+    kube-state-metrics:
+      enabled: true
+    vmagent:
+      # vmagent collects metrics from targets and sends them to a remote storage
+      enabled: true
+      # https://docs.victoriametrics.com/operator/api.html#vmagentremotewritespec
+      # defined spec will be added to the remoteWrite configuration of VMAgent
+      #
+      # https://prometheus.io/docs/prometheus/latest/querying/api/#remote-write-receiver
+      additionalRemoteWrites:
+        - url: http://prometheus.slk.moe/api/v1/write
+      # spec for VMAgent crd
+      # https://docs.victoriametrics.com/operator/api.html#vmagentspec
+      spec:
+        selectAllByDefault: true
+        scrapeInterval: 20s
+        externalLabels:
+          # For multi-cluster setups it is useful to use "cluster" label to identify the metrics source.
+          type: kubernetes
+        extraArgs:
+          # vmagent automatically switches to VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components
+          remoteWrite.forceVMProto: "true"
+          remoteWrite.vmProtoCompressLevel: "5" # -22 ~ 22, default to 0
+
+          promscrape.streamParse: "true"
+          # Do not store original labels in vmagent's memory by default. This reduces the amount of memory used by vmagent
+          # but makes vmagent debugging UI less informative. See: https://docs.victoriametrics.com/vmagent/#relabel-debug
+          promscrape.dropOriginalLabels: "false"
+      ingress:
+        enabled: true
+        ingressClassName: kong
+
+    # ================================================================
+    # Disabled components
+    # ================================================================
+
+    prometheus-node-exporter:
+      # instead of deploy node-exporter as pods, we do this via nixos module.
+      enabled: false
+
+    # Since we store metrics in a remote prometheus via remote write,
+    # we don't need to store & query metrics in VictoriaMetrics. so disable all components here.
+    grafana:
+      enabled: false
+    vmalert:
+      # vmalert is a Prometheus-compatible alertmanager
+      enabled: false
+    alertmanager:
+      enabled: false
+    vmsingle:
+      # Single-node VictoriaMetrics for storing metrics.
+      # https://docs.victoriametrics.com/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster
+      # vmsingle = vmcluster(vmselect + vmstorage + vminsert)
+      enabled: false
