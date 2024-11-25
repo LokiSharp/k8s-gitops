@@ -8,8 +8,8 @@ spec:
         scrapeInterval: 20s
         externalLabels:
           # For multi-cluster setups it is useful to use "cluster" label to identify the metrics source.
-          cluster: kubevirt-lab-1
-          env: kubevirt
+          cluster: k3s-prod-1
+          env: prod
       ingress:
         hosts:
-          - kubevirt-vmagent.slk.moe
+          - prod-1-vmagent.slk.moe
